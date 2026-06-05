@@ -28,6 +28,20 @@ if (!$base || !$file || !str_starts_with($file, $base) || !is_file($file)) {
 
 $service->markPlayed($userId, $trackId);
 
+// Wichtig: PHP sperrt die Session-Datei bis zum Ende des Requests.
+// Ein Audio-Stream kann minutenlang laufen. Ohne session_write_close()
+// blockieren währenddessen alle weiteren PHP-Seiten/API-Requests desselben Users.
+// Deshalb: Nach Auth-/Rechteprüfung und DB-Update die Session sofort freigeben.
+if (session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
+
+@set_time_limit(0);
+@ini_set('zlib.output_compression', '0');
+while (ob_get_level() > 0) {
+    @ob_end_clean();
+}
+
 $size = filesize($file);
 $start = 0;
 $end = $size - 1;
