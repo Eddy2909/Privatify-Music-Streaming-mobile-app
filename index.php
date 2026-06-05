@@ -26,7 +26,7 @@ require __DIR__ . '/app/Views/layout/header.php';
             <button class="side-toggle" id="sidebarToggle" type="button" aria-label="Navigation einklappen" aria-expanded="true">‹</button>
         </div>
         <nav class="nav-list" aria-label="Player Navigation">
-            <button class="nav-item active" type="button" data-player-filter="all">Home</button>
+            <button class="nav-item active" type="button" data-player-filter="all">Alle Songs</button>
             <button class="nav-item" type="button" data-player-filter="favorites">Liked Songs</button>
             <a class="nav-item" href="admin.php">Admin / Upload</a>
         </nav>
@@ -60,13 +60,9 @@ require __DIR__ . '/app/Views/layout/header.php';
                 </div>
                 <button class="round-play" type="button" aria-label="Alle abspielen">▶</button>
             </article>
-            <article class="listen-card compact-listen" data-player-filter-card="favorites">
+            <article class="listen-card compact-listen liked-filter-card" data-player-filter-card="favorites" role="button" tabindex="0" aria-label="Liked Songs anzeigen">
                 <div class="cover-art liked"><span>♥</span></div>
-                <div><strong>Liked Songs</strong><small><span id="likedCountText"><?= e((string) count($favorites)) ?></span> Tracks</small></div>
-            </article>
-            <article class="listen-card compact-listen">
-                <div class="cover-art stats"><span><?= e((string) $stats['total_plays']) ?></span></div>
-                <div><strong>Plays</strong><small>lokal gezählt</small></div>
+                <div><strong>Liked Songs</strong><small><span id="likedCountText"><?= e((string) count($favorites)) ?></span> Tracks · Filter</small></div>
             </article>
         </section>
 
@@ -95,6 +91,7 @@ require __DIR__ . '/app/Views/layout/header.php';
                     <h2 id="libraryHeading">Alle Songs</h2>
                 </div>
                 <div class="filters">
+                    <button id="backToAllBtn" class="btn ghost filter-back" type="button" hidden>Alle Songs</button>
                     <input id="playerSearchInput" class="field search" placeholder="Was willst du hören?" autocomplete="off">
                     <select id="playerSortSelect" class="field select" aria-label="Sortierung">
                         <option value="newest">Neueste zuerst</option>
