@@ -1,4 +1,6 @@
 # Privatefy – private MP3-Webapp für Apache Shared Hosting
+<img width="323" height="697" alt="image" src="https://github.com/user-attachments/assets/82a1ff9d-bb69-4c3e-913a-3c625d72905a" />
+<img width="1917" height="907" alt="image" src="https://github.com/user-attachments/assets/e31c1488-b5ac-422f-ae15-4240ba5b361a" />
 
 ## Architekturübersicht
 
