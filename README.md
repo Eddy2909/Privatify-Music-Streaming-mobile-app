@@ -1,10 +1,10 @@
-# Privatefy – private MP3-Webapp für Apache Shared Hosting
+# Privatify – private MP3-Webapp für Apache Shared Hosting
 <img width="323" height="697" alt="image" src="https://github.com/user-attachments/assets/82a1ff9d-bb69-4c3e-913a-3c625d72905a" />
 <img width="1917" height="907" alt="image" src="https://github.com/user-attachments/assets/e31c1488-b5ac-422f-ae15-4240ba5b361a" />
 
 ## Architekturübersicht
 
-Privatefy ist eine schlanke PHP/PDO-Anwendung ohne Composer und ohne Build-Schritt. Sensible Logik liegt in `app/`, Konfiguration in `config/`, MP3-Dateien in `storage/music/`. Diese Verzeichnisse werden per `.htaccess` gegen direkten Webzugriff geschützt. Der Browser bekommt MP3s ausschließlich über `stream.php`, das Login prüft und HTTP Range Requests unterstützt.
+Privatify ist eine schlanke PHP/PDO-Anwendung ohne Composer und ohne Build-Schritt. Sensible Logik liegt in `app/`, Konfiguration in `config/`, MP3-Dateien in `storage/music/`. Diese Verzeichnisse werden per `.htaccess` gegen direkten Webzugriff geschützt. Der Browser bekommt MP3s ausschließlich über `stream.php`, das Login prüft und HTTP Range Requests unterstützt.
 
 ## Installation
 
@@ -22,7 +22,7 @@ Privatefy ist eine schlanke PHP/PDO-Anwendung ohne Composer und ohne Build-Schri
 Optional, z. B. täglich:
 
 ```text
-https://deine-domain.de/privatefy/cron.php?token=DEIN_CRON_TOKEN
+https://deine-domain.de/Privatify/cron.php?token=DEIN_CRON_TOKEN
 ```
 
 Der Cron löscht alte temporäre Dateien und alte Playback-Events.
