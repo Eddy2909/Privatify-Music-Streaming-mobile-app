@@ -127,7 +127,7 @@ require __DIR__ . '/app/Views/layout/header.php';
         </div>
         <div class="queue-head">
             <span>Queue</span>
-            <button id="clearQueue" class="small-link" type="button">Reset</button>
+            <button id="clearQueue" class="small-link" type="button" title="Queue aus der aktuell sichtbaren Trackliste neu aufbauen">Queue aktualisieren</button>
         </div>
         <div id="queueList" class="queue-list"></div>
     </aside>
