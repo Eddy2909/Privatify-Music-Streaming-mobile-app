@@ -3,11 +3,18 @@
 declare(strict_types=1);
 
 require dirname(__DIR__) . '/app/bootstrap.php';
-Auth::requireLogin();
 $service = new TrackService();
-$userId = (int) Auth::id();
+$userId = Auth::publicLibraryUserId();
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    if ($userId === null) {
+        Response::json([
+            'ok' => true,
+            'tracks' => [],
+            'stats' => ['total_tracks' => 0, 'storage_bytes' => 0, 'storage_human' => '0 B', 'total_plays' => 0, 'favorites' => 0],
+        ]);
+    }
+
     $tracks = $service->list($userId, [
         'q' => (string) ($_GET['q'] ?? ''),
         'sort' => (string) ($_GET['sort'] ?? 'newest'),
@@ -22,6 +29,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    Auth::requireLogin();
+    $userId = (int) Auth::id();
     Csrf::requireValid();
     $action = (string) ($_POST['action'] ?? '');
     $id = (int) ($_POST['id'] ?? 0);
