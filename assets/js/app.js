@@ -497,6 +497,7 @@
   }
 
   function initPlayer() {
+    const isPublic = document.body?.dataset?.auth === 'public';
     const state = { allTracks: [], tracks: [], playlists: [], current: null, currentIndex: 0, queue: [], q: '', sort: 'newest', filter: 'all', playlistId: null };
     const trackList = $('#playerTrackList');
     if (!trackList) return;
@@ -573,11 +574,14 @@
         const genre = document.createElement('span'); genre.className = 'badge hide-mobile'; genre.textContent = track.genre || 'MP3'; row.append(genre);
 
         const actions = document.createElement('div'); actions.className = 'song-actions';
-        const fav = favoriteButton(track, 'Favorit');
-        fav.addEventListener('click', () => toggleFavorite(track));
-        const add = button('small-btn add-toggle', '+', 'Zu Playlist');
-        add.addEventListener('click', () => openPlaylistDialog(track));
-        actions.append(fav, add); row.append(actions);
+        if (!isPublic) {
+          const fav = favoriteButton(track, 'Favorit');
+          fav.addEventListener('click', () => toggleFavorite(track));
+          const add = button('small-btn add-toggle', '+', 'Zu Playlist');
+          add.addEventListener('click', () => openPlaylistDialog(track));
+          actions.append(fav, add);
+        }
+        row.append(actions);
         trackList.append(row);
       });
       state.queue = [...list];
