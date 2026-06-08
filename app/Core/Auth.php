@@ -25,6 +25,19 @@ final class Auth
         return self::id() !== null;
     }
 
+    public static function publicLibraryUserId(): ?int
+    {
+        $current = self::id();
+        if ($current !== null) {
+            return $current;
+        }
+
+        $stmt = Db::pdo()->query("SELECT id FROM users WHERE role = 'admin' ORDER BY created_at ASC, id ASC LIMIT 1");
+        $id = $stmt ? $stmt->fetchColumn() : false;
+
+        return $id === false ? null : (int) $id;
+    }
+
     public static function requireLogin(): void
     {
         if (!self::check()) {
