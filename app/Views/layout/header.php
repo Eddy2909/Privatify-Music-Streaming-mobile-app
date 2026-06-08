@@ -8,4 +8,4 @@
     <title><?= e((string) Config::get('app.name', 'Privatefy')) ?></title>
     <link rel="stylesheet" href="assets/css/app.css">
 </head>
-<body>
+<body data-app="<?= e($pageMode ?? 'app') ?>" data-auth="<?= Auth::check() ? 'user' : 'public' ?>">
