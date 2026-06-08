@@ -3,11 +3,10 @@
 declare(strict_types=1);
 
 require __DIR__ . '/app/bootstrap.php';
-Auth::requireLogin();
 
-$userId = (int) Auth::id();
+$userId = Auth::publicLibraryUserId();
 $trackId = (int) ($_GET['id'] ?? 0);
-if ($trackId <= 0) {
+if ($userId === null || $trackId <= 0) {
     http_response_code(404);
     exit('Nicht gefunden');
 }
