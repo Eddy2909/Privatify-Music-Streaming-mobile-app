@@ -3,15 +3,15 @@
 declare(strict_types=1);
 
 require __DIR__ . '/app/bootstrap.php';
-Auth::requireLogin();
 
 $user = Auth::user();
+$isLoggedIn = Auth::check();
+$libraryUserId = Auth::publicLibraryUserId();
 $trackService = new TrackService();
 $playlistService = new PlaylistService();
-$userId = (int) Auth::id();
-$tracks = array_map([$trackService, 'formatTrack'], $trackService->list($userId, ['limit' => 300]));
-$stats = $trackService->stats($userId);
-$playlists = $playlistService->list($userId);
+$tracks = $libraryUserId === null ? [] : array_map([$trackService, 'formatTrack'], $trackService->list($libraryUserId, ['limit' => 300]));
+$stats = $libraryUserId === null ? ['total_tracks' => 0, 'storage_bytes' => 0, 'storage_human' => '0 B', 'total_plays' => 0, 'favorites' => 0] : $trackService->stats($libraryUserId);
+$playlists = $libraryUserId === null ? [] : $playlistService->list($libraryUserId);
 $favorites = array_values(array_filter($tracks, static fn (array $t): bool => !empty($t['favorite'])));
 $recent = array_slice($tracks, 0, 12);
 
@@ -28,13 +28,21 @@ require __DIR__ . '/app/Views/layout/header.php';
         <nav class="nav-list" aria-label="Player Navigation">
             <button class="nav-item active" type="button" data-player-filter="all">Alle Songs</button>
             <button class="nav-item" type="button" data-player-filter="favorites">Liked Songs</button>
-            <a class="nav-item" href="admin.php">Admin / Upload</a>
+            <?php if ($isLoggedIn): ?>
+                <a class="nav-item" href="admin.php">Admin / Upload</a>
+            <?php else: ?>
+                <a class="nav-item" href="login.php">Login</a>
+            <?php endif; ?>
         </nav>
         <section class="sidebar-block">
             <div class="section-title">Playlists</div>
             <div id="playerPlaylistList" class="playlist-list" data-playlists='<?= e(json_encode($playlists, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>'></div>
         </section>
-        <a class="logout" href="logout.php">Logout</a>
+        <?php if ($isLoggedIn): ?>
+            <a class="logout" href="logout.php">Logout</a>
+        <?php else: ?>
+            <a class="logout" href="login.php">Admin Login</a>
+        <?php endif; ?>
     </aside>
 
     <main class="player-main">
@@ -45,8 +53,12 @@ require __DIR__ . '/app/Views/layout/header.php';
                 <p class="muted"><span id="playerTotalTracksText"><?= e($stats['total_tracks']) ?></span> Tracks · <?= e($stats['storage_human']) ?> lokal geschützt gespeichert</p>
             </div>
             <div class="top-actions">
-                <a class="btn ghost" href="admin.php">Upload & Verwaltung</a>
-                <div class="status-pill"><span class="pulse"></span> privat</div>
+                <?php if ($isLoggedIn): ?>
+                    <a class="btn ghost" href="admin.php">Upload & Verwaltung</a>
+                <?php else: ?>
+                    <a class="btn ghost" href="login.php">Admin Login</a>
+                <?php endif; ?>
+                <div class="status-pill"><span class="pulse"></span><?= $isLoggedIn ? 'privat' : 'offen' ?></div>
             </div>
         </header>
 
