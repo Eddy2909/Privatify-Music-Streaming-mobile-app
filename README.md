@@ -51,6 +51,18 @@ Geschuetzt:
 
 Wenn im Webroot eine `index.html` neben `index.php` liegt, kann Apache je nach `DirectoryIndex` zuerst `index.html` ausliefern. Fuer den Player als Startseite sollte `index.php` Vorrang haben oder `index.html` entfernt/umbenannt werden.
 
+## PWA, Handy-Verknuepfung und Favicon
+
+Die App bringt jetzt eine PWA-Grundkonfiguration mit:
+
+- `manifest.webmanifest` fuer Name, Startseite, Standalone-Modus und App-Icons.
+- `service-worker.js` fuer die Browser-Installation und statische Assets.
+- `assets/js/pwa.js` registriert den Service Worker.
+- `favicon.svg` und `assets/icons/*.png` liefern Browser-, Android- und Apple-Homescreen-Icons.
+- `.htaccess` setzt `index.php` als Startdatei und den MIME-Type fuer `.webmanifest`.
+
+Wichtig: Nach dem Update alte Homescreen-Verknuepfungen auf dem Handy loeschen und die App neu ueber "Zum Startbildschirm hinzufuegen" bzw. "App installieren" anlegen. Erst die neu installierte Verknuepfung startet im Standalone-Modus ohne normale Browser-Bedienleiste. Die Seite muss dafuer ueber HTTPS oder `localhost` erreichbar sein; reine HTTP-Webseiten werden von modernen Browsern nicht als PWA installiert.
+
 ## Cronjob
 
 Optional, z. B. taeglich:
@@ -87,7 +99,14 @@ api/tracks.php
 api/playlists.php
 app/Core/Auth.php
 app/Views/layout/header.php
+app/Views/layout/footer.php
 assets/js/app.js
+assets/js/pwa.js
+assets/icons/
+favicon.svg
+manifest.webmanifest
+service-worker.js
+.htaccess
 README.md
 ```
 
