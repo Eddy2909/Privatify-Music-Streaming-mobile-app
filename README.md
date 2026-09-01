@@ -82,10 +82,12 @@ Der Cron loescht alte temporaere Dateien und alte Playback-Events.
 
 ## Sicherheit
 
-- Login ueber `login.php`; Sessions sind gehaertet mit HttpOnly-Cookie, SameSite=Lax, Strict Mode, Session-Regeneration, Idle Timeout und User-Agent-Fingerprint.
+- Login ueber `login.php`; Sessions bleiben bei Aktivitaet bis zu 30 Tage angemeldet und sind mit persistentem HttpOnly-/SameSite-Cookie, Strict Mode, taeglicher Session-Regeneration, Idle Timeout und User-Agent-Fingerprint gehaertet.
+- Fehlgeschlagene Logins werden pro Login und IP serverseitig begrenzt. Der Status liegt in `storage/tmp/login-rate-limits.json` und ist nicht oeffentlich erreichbar.
 - Schreibende Aktionen laufen mit CSRF-Token im Header oder Formular.
 - Upload akzeptiert nur `.mp3`, prueft Groesse, MIME-Type mit `finfo`, SHA-256-Dubletten und speichert mit zufaelligem Dateinamen.
 - Streaming laeuft ueber `stream.php` mit Library-Zuordnung, Pfadpruefung und Range-Support.
+- Track-Suche und Bibliothek verwenden serverseitige Pagination mit 100 Eintraegen pro Seite.
 - Datenbankzugriff laeuft ausschliesslich ueber PDO Prepared Statements.
 
 ## Update fuer bestehende Installationen

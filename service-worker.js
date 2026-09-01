@@ -1,4 +1,4 @@
-const CACHE_NAME = 'privatefy-static-v2';
+const CACHE_NAME = 'privatefy-static-v3';
 const STATIC_ASSETS = [
   './assets/css/app.css',
   './assets/js/app.js',
@@ -7,8 +7,8 @@ const STATIC_ASSETS = [
   './favicon.svg',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
-  './assets/icons/icon-maskable-512.png',
-  './assets/icons/apple-touch-icon.png'
+  './assets/icons/maskable-512.png',
+  './assets/icons/icon-180.png'
 ];
 
 self.addEventListener('install', (event) => {

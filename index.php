@@ -9,11 +9,10 @@ $isLoggedIn = Auth::check();
 $libraryUserId = Auth::publicLibraryUserId();
 $trackService = new TrackService();
 $playlistService = new PlaylistService();
-$tracks = $libraryUserId === null ? [] : array_map([$trackService, 'formatTrack'], $trackService->list($libraryUserId, ['limit' => 300]));
+$tracks = $libraryUserId === null ? [] : array_map([$trackService, 'formatTrack'], $trackService->list($libraryUserId, ['limit' => 100]));
 $stats = $libraryUserId === null ? ['total_tracks' => 0, 'storage_bytes' => 0, 'storage_human' => '0 B', 'total_plays' => 0, 'favorites' => 0] : $trackService->stats($libraryUserId);
 $playlists = $libraryUserId === null ? [] : $playlistService->list($libraryUserId);
 $favorites = array_values(array_filter($tracks, static fn (array $t): bool => !empty($t['favorite'])));
-$recent = array_slice($tracks, 0, 12);
 
 $pageMode = 'player';
 $pageTitle = 'Privatefy Player';
@@ -78,24 +77,6 @@ require __DIR__ . '/app/Views/layout/header.php';
             </article>
         </section>
 
-        <section class="shelf" aria-labelledby="recentHeading">
-            <div class="shelf-head">
-                <div>
-                    <p class="eyebrow">Recently added</p>
-                    <h2 id="recentHeading">Neu in deiner Library</h2>
-                </div>
-            </div>
-            <div class="album-grid" id="albumGrid">
-                <?php foreach ($recent as $track): ?>
-                    <button class="album-card" type="button" data-play-track="<?= e((string) $track['id']) ?>">
-                        <div class="cover-art"><span>♪</span></div>
-                        <strong><?= e($track['title']) ?></strong>
-                        <small><?= e($track['artist'] ?: 'Unbekannter Artist') ?></small>
-                    </button>
-                <?php endforeach; ?>
-            </div>
-        </section>
-
         <section class="player-library" aria-labelledby="libraryHeading">
             <div class="library-head player-library-head">
                 <div>
@@ -104,7 +85,7 @@ require __DIR__ . '/app/Views/layout/header.php';
                 </div>
                 <div class="filters">
                     <button id="backToAllBtn" class="btn ghost filter-back" type="button" hidden>Alle Songs</button>
-                    <input id="playerSearchInput" class="field search" placeholder="Was willst du hören?" autocomplete="off">
+                    <input id="playerSearchInput" class="field search" type="search" placeholder="Titel, Interpret, Album oder Genre suchen" autocomplete="off" aria-label="Musik durchsuchen">
                     <select id="playerSortSelect" class="field select" aria-label="Sortierung">
                         <option value="newest">Neueste zuerst</option>
                         <option value="title">Titel A-Z</option>
@@ -116,12 +97,15 @@ require __DIR__ . '/app/Views/layout/header.php';
             </div>
 
             <div class="song-list-card">
-                <div id="playerTrackList" class="song-list" data-tracks='<?= e(json_encode($tracks, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>'></div>
+                <div id="playerTrackList" class="song-list" data-tracks='<?= e(json_encode($tracks, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>' data-total="<?= e((string) $stats['total_tracks']) ?>" data-favorites="<?= e((string) $stats['favorites']) ?>"></div>
                 <div id="playerEmptyState" class="empty-state" hidden>
                     <div class="brand-mark small">♪</div>
                     <h3>Noch keine Tracks.</h3>
                     <p class="muted">Öffne den Admin-Bereich und lade deine erste MP3 hoch.</p>
                     <a class="btn primary" href="admin.php">Zum Upload</a>
+                </div>
+                <div class="list-footer">
+                    <button id="playerLoadMore" class="btn ghost" type="button" <?= count($tracks) >= (int) $stats['total_tracks'] ? 'hidden' : '' ?>>Weitere Tracks laden</button>
                 </div>
             </div>
         </section>
@@ -146,7 +130,9 @@ require __DIR__ . '/app/Views/layout/header.php';
     <audio id="audio"></audio>
     <div class="now">
         <div class="cover">♪</div>
-        <div><strong id="nowTitle">Kein Track</strong><span id="nowArtist">—</span></div>
+        <div class="now-copy">
+            <strong id="nowTitle">Kein Track</strong><span id="nowArtist">—</span>
+        </div>
     </div>
     <div class="transport">
         <button id="prevTrack" class="player-btn" type="button" title="Zurück">⏮</button>

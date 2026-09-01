@@ -37,6 +37,7 @@ set_exception_handler(static function (Throwable $e): void {
 
 require_once __DIR__ . '/Core/Db.php';
 require_once __DIR__ . '/Core/Session.php';
+require_once __DIR__ . '/Core/LoginRateLimiter.php';
 require_once __DIR__ . '/Core/Csrf.php';
 require_once __DIR__ . '/Core/Response.php';
 require_once __DIR__ . '/Core/Auth.php';

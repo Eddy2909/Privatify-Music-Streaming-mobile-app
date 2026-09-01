@@ -13,10 +13,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     Csrf::requireValid();
     $login = clean_string((string) ($_POST['login'] ?? ''), 190);
     $password = (string) ($_POST['password'] ?? '');
-    if ($login !== '' && $password !== '' && Auth::attempt($login, $password)) {
-        Response::redirect('index.php');
+    try {
+        if ($login !== '' && $password !== '' && Auth::attempt($login, $password)) {
+            Response::redirect('index.php');
+        }
+        $error = 'Login fehlgeschlagen. Bitte Zugangsdaten prüfen.';
+    } catch (RuntimeException $e) {
+        $error = $e->getMessage();
     }
-    $error = 'Login fehlgeschlagen. Bitte Zugangsdaten prüfen.';
 }
 
 require __DIR__ . '/app/Views/layout/header.php';

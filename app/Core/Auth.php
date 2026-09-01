@@ -48,36 +48,41 @@ final class Auth
         }
     }
 
-public static function attempt(string $login, string $password): bool
-{
-    $stmt = Db::pdo()->prepare(
-        'SELECT id, username, email, password_hash
-         FROM users
-         WHERE username = :username_login OR email = :email_login
-         LIMIT 1'
-    );
+    public static function attempt(string $login, string $password): bool
+    {
+        $limiter = new LoginRateLimiter();
+        $limiter->assertAllowed($login);
 
-    $stmt->execute([
-        'username_login' => $login,
-        'email_login' => $login,
-    ]);
+        $stmt = Db::pdo()->prepare(
+            'SELECT id, username, email, password_hash
+             FROM users
+             WHERE username = :username_login OR email = :email_login
+             LIMIT 1'
+        );
 
-    $user = $stmt->fetch();
+        $stmt->execute([
+            'username_login' => $login,
+            'email_login' => $login,
+        ]);
 
-    if (!$user || !password_verify($password, (string) $user['password_hash'])) {
-        usleep(250000);
-        return false;
+        $user = $stmt->fetch();
+
+        if (!$user || !password_verify($password, (string) $user['password_hash'])) {
+            $limiter->recordFailure($login);
+            usleep(250000);
+            return false;
+        }
+
+        $limiter->recordSuccess($login);
+        session_regenerate_id(true);
+        $_SESSION['user_id'] = (int) $user['id'];
+        $_SESSION['_created_at'] = time();
+
+        $update = Db::pdo()->prepare('UPDATE users SET last_login_at = NOW() WHERE id = :id');
+        $update->execute(['id' => (int) $user['id']]);
+
+        return true;
     }
-
-    session_regenerate_id(true);
-    $_SESSION['user_id'] = (int) $user['id'];
-    $_SESSION['_created_at'] = time();
-
-    $update = Db::pdo()->prepare('UPDATE users SET last_login_at = NOW() WHERE id = :id');
-    $update->execute(['id' => (int) $user['id']]);
-
-    return true;
-}
 
     public static function logout(): void
     {
