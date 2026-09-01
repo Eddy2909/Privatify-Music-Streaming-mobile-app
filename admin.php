@@ -9,7 +9,7 @@ $user = Auth::user();
 $trackService = new TrackService();
 $playlistService = new PlaylistService();
 $userId = (int) Auth::id();
-$tracks = array_map([$trackService, 'formatTrack'], $trackService->list($userId, ['limit' => 200]));
+$tracks = array_map([$trackService, 'formatTrack'], $trackService->list($userId, ['limit' => 100]));
 $stats = $trackService->stats($userId);
 $playlists = $playlistService->list($userId);
 
@@ -85,7 +85,7 @@ require __DIR__ . '/app/Views/layout/header.php';
                 <h2>Alle Tracks</h2>
             </div>
             <div class="filters">
-                <input id="searchInput" class="field search" placeholder="Suchen nach Titel, Artist, Album …" autocomplete="off">
+                <input id="searchInput" class="field search" type="search" placeholder="Titel, Interpret, Album oder Genre suchen" autocomplete="off" aria-label="Musik durchsuchen">
                 <select id="sortSelect" class="field select" aria-label="Sortierung">
                     <option value="newest">Neueste zuerst</option>
                     <option value="title">Titel A-Z</option>
@@ -98,11 +98,14 @@ require __DIR__ . '/app/Views/layout/header.php';
         </section>
 
         <section class="track-table-card">
-            <div class="track-table" id="trackList" data-tracks='<?= e(json_encode($tracks, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>'></div>
+            <div class="track-table" id="trackList" data-tracks='<?= e(json_encode($tracks, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>' data-total="<?= e((string) $stats['total_tracks']) ?>"></div>
             <div id="emptyState" class="empty-state" hidden>
                 <div class="brand-mark small">♪</div>
                 <h3>Noch keine Tracks.</h3>
                 <p class="muted">Lade deine erste MP3 hoch. Danach erscheint sie sofort hier.</p>
+            </div>
+            <div class="list-footer">
+                <button id="adminLoadMore" class="btn ghost" type="button" <?= count($tracks) >= (int) $stats['total_tracks'] ? 'hidden' : '' ?>>Weitere Tracks laden</button>
             </div>
         </section>
     </main>
@@ -112,9 +115,15 @@ require __DIR__ . '/app/Views/layout/header.php';
     <audio id="audio"></audio>
     <div class="now">
         <div class="cover">♪</div>
-        <div><strong id="nowTitle">Kein Track</strong><span id="nowArtist">—</span></div>
+        <div class="now-copy">
+            <strong id="nowTitle">Kein Track</strong><span id="nowArtist">—</span>
+        </div>
     </div>
-    <button id="playPause" class="player-btn" type="button">▶</button>
+    <div class="transport">
+        <button id="prevTrack" class="player-btn" type="button" aria-label="Vorheriger Track">⏮</button>
+        <button id="playPause" class="player-btn main-control" type="button" aria-label="Wiedergabe starten oder pausieren">▶</button>
+        <button id="nextTrack" class="player-btn" type="button" aria-label="Nächster Track">⏭</button>
+    </div>
     <input id="seek" class="seek" type="range" min="0" max="1000" value="0" aria-label="Fortschritt">
     <span id="timeLabel" class="time-label">0:00</span>
     <input id="volume" class="volume" type="range" min="0" max="1" value="0.9" step="0.01" aria-label="Lautstärke">

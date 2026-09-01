@@ -76,6 +76,14 @@
     return list.filter(t => String(t.id) !== String(id));
   }
 
+  function mergeTracks(current, incoming) {
+    const merged = [...(Array.isArray(current) ? current : [])];
+    (Array.isArray(incoming) ? incoming : []).forEach(track => {
+      if (!replaceById(merged, track)) merged.push(track);
+    });
+    return merged;
+  }
+
   function setFavoriteInTrack(track, favorite) {
     if (!track) return track;
     track.favorite = !!favorite;
@@ -116,16 +124,19 @@
     const sidebar = $('#appSidebar');
     if (!shell || !toggle || !sidebar) return;
 
-    const key = 'privatefy.sidebarCollapsed';
+    const breakpoint = sidebar.classList.contains('player-side') ? 860 : 1050;
+    const isMobile = window.matchMedia(`(max-width:${breakpoint}px)`).matches;
+    const key = `privatefy.sidebarCollapsed.${appMode}.${isMobile ? 'mobile' : 'desktop'}`;
     const apply = (collapsed) => {
       shell.classList.toggle('sidebar-collapsed', collapsed);
       sidebar.classList.toggle('is-collapsed', collapsed);
       toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
       toggle.setAttribute('aria-label', collapsed ? 'Navigation ausklappen' : 'Navigation einklappen');
-      toggle.textContent = collapsed ? '›' : '‹';
+      toggle.textContent = isMobile ? (collapsed ? '☰' : '×') : (collapsed ? '›' : '‹');
     };
 
-    apply(localStorage.getItem(key) === '1');
+    const stored = localStorage.getItem(key);
+    apply(stored === null ? isMobile : stored === '1');
     toggle.addEventListener('click', () => {
       const collapsed = !shell.classList.contains('sidebar-collapsed');
       localStorage.setItem(key, collapsed ? '1' : '0');
@@ -142,8 +153,8 @@
     const seek = $('#seek');
     const timeLabel = $('#timeLabel');
     const volume = $('#volume');
-    const prev = $('#prevTrack');
-    const next = $('#nextTrack');
+    const prevControls = $$('#prevTrack');
+    const nextControls = $$('#nextTrack');
     if (!audio || !player) return null;
 
     const api = {
@@ -191,28 +202,45 @@
       if (Number.isFinite(audio.duration)) audio.currentTime = (Number(seek.value) / 1000) * audio.duration;
     });
     volume?.addEventListener('input', () => { audio.volume = Number(volume.value); });
-    prev?.addEventListener('click', api.prev);
-    next?.addEventListener('click', api.next);
+    prevControls.forEach(control => control.addEventListener('click', api.prev));
+    nextControls.forEach(control => control.addEventListener('click', api.next));
     if (volume) audio.volume = Number(volume.value || 0.9);
     state.audioController = api;
     return api;
   }
 
   function initAdmin() {
-    const state = { tracks: [], playlists: [], current: null, currentIndex: 0, queue: [], favoriteOnly: false, q: '', sort: 'newest', currentPlaylistId: null };
+    const state = { tracks: [], playlists: [], current: null, currentIndex: 0, queue: [], favoriteOnly: false, q: '', sort: 'newest', currentPlaylistId: null, page: 1, pageSize: 100, hasMore: false, total: 0 };
     const trackList = $('#trackList');
     if (!trackList) return;
     state.tracks = JSON.parse(trackList.dataset.tracks || '[]');
+    state.total = Number(trackList.dataset.total || state.tracks.length);
+    state.hasMore = state.tracks.length < state.total;
     state.playlists = JSON.parse($('#playlistList')?.dataset.playlists || '[]');
     const audioCtl = createAudioController(state);
+    let refreshRequest = 0;
 
-    async function refreshTracks() {
-      const params = new URLSearchParams({q: state.q, sort: state.sort, favorite: state.favoriteOnly ? '1' : '0'});
+    async function refreshTracks(append = false) {
+      const requestId = ++refreshRequest;
+      const page = append ? state.page + 1 : 1;
+      const params = new URLSearchParams({q: state.q, sort: state.sort, favorite: state.favoriteOnly ? '1' : '0', page: String(page), limit: String(state.pageSize)});
       const json = await getJson('api/tracks.php?' + params.toString());
+      if (requestId !== refreshRequest) return;
       state.currentPlaylistId = null;
-      state.tracks = json.tracks;
+      state.tracks = append ? mergeTracks(state.tracks, json.tracks) : json.tracks;
+      state.page = json.pagination?.page || page;
+      state.total = json.pagination?.total ?? state.tracks.length;
+      state.hasMore = !!json.pagination?.has_more;
       renderTracks();
       updateStats(json.stats);
+      updateAdminLoadMore();
+    }
+
+    function updateAdminLoadMore() {
+      const loadMore = $('#adminLoadMore');
+      if (!loadMore) return;
+      loadMore.hidden = !state.hasMore || state.currentPlaylistId !== null;
+      loadMore.disabled = false;
     }
 
     function updateStats(stats) {
@@ -292,8 +320,10 @@
       try {
         const json = await getJson('api/playlists.php?id=' + encodeURIComponent(id));
         state.currentPlaylistId = id;
+        state.hasMore = false;
         state.tracks = json.tracks;
         renderTracks(json.tracks);
+        updateAdminLoadMore();
         const h = $('.library-head h2'); if (h) h.textContent = json.playlist.name;
         window.scrollTo({top: document.querySelector('.library-head').offsetTop - 20, behavior: 'smooth'});
       } catch (e) { notify(e.message, false); }
@@ -324,6 +354,7 @@
       try {
         const json = await post('api/tracks.php', formData({action:'delete', id:track.id}));
         state.tracks = removeById(state.tracks, track.id);
+        state.total = Math.max(0, state.total - 1);
         updateStats(json.stats); renderTracks(); notify('Track gelöscht.', true);
       } catch (e) { notify(e.message, false); }
     }
@@ -383,8 +414,13 @@
     initUpload(refreshTracks, updateStats);
     initCommonDialogs();
     initAdminFilters(refreshTracks, state);
+    $('#adminLoadMore')?.addEventListener('click', async ev => {
+      ev.currentTarget.disabled = true;
+      try { await refreshTracks(true); } catch (e) { ev.currentTarget.disabled = false; notify(e.message, false); }
+    });
     renderTracks();
     renderPlaylists();
+    updateAdminLoadMore();
   }
 
   function initUpload(refreshTracks, updateStats) {
@@ -498,14 +534,18 @@
 
   function initPlayer() {
     const isPublic = document.body?.dataset?.auth === 'public';
-    const state = { allTracks: [], tracks: [], playlists: [], current: null, currentIndex: 0, queue: [], q: '', sort: 'newest', filter: 'all', playlistId: null };
+    const state = { allTracks: [], tracks: [], playlists: [], current: null, currentIndex: 0, queue: [], q: '', sort: 'newest', filter: 'all', playlistId: null, page: 1, pageSize: 100, hasMore: false, libraryTotal: 0, totalFavorites: 0 };
     const trackList = $('#playerTrackList');
     if (!trackList) return;
     state.allTracks = JSON.parse(trackList.dataset.tracks || '[]');
     state.tracks = [...state.allTracks];
     state.queue = [...state.tracks];
+    state.libraryTotal = Number(trackList.dataset.total || state.tracks.length);
+    state.totalFavorites = Number(trackList.dataset.favorites || state.tracks.filter(t => !!t.favorite).length);
+    state.hasMore = state.tracks.length < state.libraryTotal;
     state.playlists = JSON.parse($('#playerPlaylistList')?.dataset.playlists || '[]');
     const audioCtl = createAudioController(state);
+    let refreshRequest = 0;
 
     function knownTracks() {
       return state.allTracks.length ? state.allTracks : state.tracks;
@@ -517,9 +557,15 @@
     }
 
     function updatePlayerCounters() {
-      const base = knownTracks();
-      text($('#likedCountText'), String(base.filter(t => !!t.favorite).length));
-      text($('#playerTotalTracksText'), String(base.length));
+      text($('#likedCountText'), String(state.totalFavorites));
+      text($('#playerTotalTracksText'), String(state.libraryTotal));
+    }
+
+    function updatePlayerLoadMore() {
+      const loadMore = $('#playerLoadMore');
+      if (!loadMore) return;
+      loadMore.hidden = !state.hasMore || state.playlistId !== null;
+      loadMore.disabled = false;
     }
 
     function updateFilterControls() {
@@ -580,8 +626,10 @@
           const add = button('small-btn add-toggle', '+', 'Zu Playlist');
           add.addEventListener('click', () => openPlaylistDialog(track));
           actions.append(fav, add);
+          row.append(actions);
+        } else {
+          row.classList.add('no-actions');
         }
-        row.append(actions);
         trackList.append(row);
       });
       state.queue = [...list];
@@ -650,13 +698,28 @@
       });
     }
 
-    async function refreshTracks() {
-      const params = new URLSearchParams({q: state.q, sort: state.sort, favorite: state.filter === 'favorites' ? '1' : '0'});
+    async function refreshTracks(append = false) {
+      const requestId = ++refreshRequest;
+      const page = append ? state.page + 1 : 1;
+      const params = new URLSearchParams({q: state.q, sort: state.sort, favorite: state.filter === 'favorites' ? '1' : '0', page: String(page), limit: String(state.pageSize)});
       const json = await getJson('api/tracks.php?' + params.toString());
-      state.tracks = json.tracks;
-      if (state.filter === 'all' && !state.q) state.allTracks = [...json.tracks];
+      if (requestId !== refreshRequest) return;
+      state.tracks = append ? mergeTracks(state.tracks, json.tracks) : json.tracks;
+      state.page = json.pagination?.page || page;
+      state.hasMore = !!json.pagination?.has_more;
+      state.libraryTotal = Number(json.stats?.total_tracks ?? state.libraryTotal);
+      state.totalFavorites = Number(json.stats?.favorites ?? state.totalFavorites);
+      if (state.filter === 'all' && !state.q) state.allTracks = [...state.tracks];
+      if (state.q) {
+        text($('#playerContext'), 'Suche');
+        text($('#libraryHeading'), `${json.pagination?.total ?? state.tracks.length} Treffer`);
+      } else {
+        text($('#playerContext'), state.filter === 'favorites' ? 'Favoriten' : 'Bibliothek');
+        text($('#libraryHeading'), state.filter === 'favorites' ? 'Liked Songs' : 'Alle Songs');
+      }
       updateFilterControls();
       renderPlayerTracks();
+      updatePlayerLoadMore();
     }
 
     async function loadPlaylist(id) {
@@ -664,12 +727,14 @@
         const json = await getJson('api/playlists.php?id=' + encodeURIComponent(id));
         state.filter = 'playlist';
         state.playlistId = id;
+        state.hasMore = false;
         state.tracks = json.tracks;
         text($('#playerContext'), 'Playlist');
         text($('#libraryHeading'), json.playlist.name);
         markNav(null);
         updateFilterControls();
         renderPlayerTracks(state.tracks);
+        updatePlayerLoadMore();
       } catch (e) { notify(e.message, false); }
     }
 
@@ -680,6 +745,7 @@
     function setFilter(filter) {
       state.filter = filter;
       state.playlistId = null;
+      state.page = 1;
       if (filter === 'all') {
         state.q = '';
         const search = $('#playerSearchInput');
@@ -702,6 +768,7 @@
       try {
         const json = await post('api/tracks.php', formData({action:'favorite', id:track.id}));
         replaceTrackEverywhere(json.track);
+        state.totalFavorites = Number(json.stats?.favorites ?? state.totalFavorites);
         renderPlayerTracks();
       } catch (e) {
         replaceTrackEverywhere({...track, favorite: previous});
@@ -737,6 +804,11 @@
     let searchTimer = null;
     $('#playerSearchInput')?.addEventListener('input', ev => {
       state.q = ev.target.value;
+      if (state.playlistId !== null) {
+        state.filter = 'all';
+        state.playlistId = null;
+        markNav('all');
+      }
       updateFilterControls();
       clearTimeout(searchTimer); searchTimer = setTimeout(() => refreshTracks().catch(e => notify(e.message, false)), 180);
     });
@@ -751,10 +823,10 @@
     $('#backToAllBtn')?.addEventListener('click', () => setFilter('all'));
     $('#heroPlayAll')?.addEventListener('click', () => { const list = visibleTracks(); if (list.length) audioCtl?.playTrack(list[0], list); });
     $('#heroPlayAll')?.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); const list = visibleTracks(); if (list.length) audioCtl?.playTrack(list[0], list); } });
-    $$('[data-play-track]').forEach(btn => btn.addEventListener('click', () => {
-      const track = state.allTracks.find(t => String(t.id) === String(btn.dataset.playTrack)) || state.tracks.find(t => String(t.id) === String(btn.dataset.playTrack));
-      if (track) audioCtl?.playTrack(track, state.allTracks.length ? state.allTracks : visibleTracks());
-    }));
+    $('#playerLoadMore')?.addEventListener('click', async ev => {
+      ev.currentTarget.disabled = true;
+      try { await refreshTracks(true); } catch (e) { ev.currentTarget.disabled = false; notify(e.message, false); }
+    });
     $('#clearQueue')?.addEventListener('click', () => {
       state.queue = [...visibleTracks()];
       syncQueueIndexWithCurrent();
@@ -766,6 +838,7 @@
     updateFilterControls();
     renderPlayerTracks();
     updatePlayerCounters();
+    updatePlayerLoadMore();
   }
 
   function moveQueueItem(state, fromIndex, toIndex) {

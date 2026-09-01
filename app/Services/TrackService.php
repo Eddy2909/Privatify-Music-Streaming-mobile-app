@@ -6,18 +6,7 @@ final class TrackService
 {
     public function list(int $userId, array $filters = []): array
     {
-        $where = ['user_id = :user_id', 'deleted_at IS NULL'];
-        $params = ['user_id' => $userId];
-
-        $search = trim((string) ($filters['q'] ?? ''));
-        if ($search !== '') {
-            $where[] = '(title LIKE :q OR artist LIKE :q OR album LIKE :q OR genre LIKE :q)';
-            $params['q'] = '%' . $search . '%';
-        }
-
-        if (!empty($filters['favorite'])) {
-            $where[] = 'favorite = 1';
-        }
+        [$where, $params] = $this->buildFilters($userId, $filters);
 
         $sort = (string) ($filters['sort'] ?? 'newest');
         $orderBy = match ($sort) {
@@ -28,12 +17,21 @@ final class TrackService
             default => 'created_at DESC',
         };
 
-        $limit = min(max((int) ($filters['limit'] ?? 200), 1), 500);
+        $limit = min(max((int) ($filters['limit'] ?? 100), 1), 200);
+        $offset = max((int) ($filters['offset'] ?? 0), 0);
         $sql = 'SELECT id, title, artist, album, genre, year, original_filename, size_bytes, duration_seconds, favorite, play_count, last_played_at, created_at
-                FROM tracks WHERE ' . implode(' AND ', $where) . ' ORDER BY ' . $orderBy . ' LIMIT ' . $limit;
+                FROM tracks WHERE ' . implode(' AND ', $where) . ' ORDER BY ' . $orderBy . ' LIMIT ' . $limit . ' OFFSET ' . $offset;
         $stmt = Db::pdo()->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();
+    }
+
+    public function count(int $userId, array $filters = []): int
+    {
+        [$where, $params] = $this->buildFilters($userId, $filters);
+        $stmt = Db::pdo()->prepare('SELECT COUNT(*) FROM tracks WHERE ' . implode(' AND ', $where));
+        $stmt->execute($params);
+        return (int) $stmt->fetchColumn();
     }
 
     public function getOwned(int $userId, int $trackId): ?array
@@ -138,6 +136,8 @@ final class TrackService
 
         Db::pdo()->beginTransaction();
         try {
+            $relations = Db::pdo()->prepare('DELETE FROM playlist_tracks WHERE track_id = :track_id');
+            $relations->execute(['track_id' => $trackId]);
             $stmt = Db::pdo()->prepare('UPDATE tracks SET deleted_at = NOW() WHERE id = :id AND user_id = :user_id');
             $stmt->execute(['id' => $trackId, 'user_id' => $userId]);
             Db::pdo()->commit();
@@ -147,8 +147,8 @@ final class TrackService
         }
 
         $path = rtrim((string) Config::get('app.storage_path'), '/\\') . DIRECTORY_SEPARATOR . $track['storage_filename'];
-        if (is_file($path)) {
-            @unlink($path);
+        if (is_file($path) && !@unlink($path)) {
+            error_log('Privatefy: MP3-Datei konnte nach dem Löschen nicht entfernt werden: ' . $track['storage_filename']);
         }
     }
 
@@ -191,5 +191,30 @@ final class TrackService
             'created_at' => $track['created_at'],
             'stream_url' => 'stream.php?id=' . (int) $track['id'],
         ];
+    }
+
+    private function buildFilters(int $userId, array $filters): array
+    {
+        $where = ['user_id = :user_id', 'deleted_at IS NULL'];
+        $params = ['user_id' => $userId];
+
+        $search = clean_string((string) ($filters['q'] ?? ''), 160);
+        if ($search !== '') {
+            // Native PDO prepares require a distinct placeholder for every occurrence.
+            // "=" is used as LIKE escape character so %, _ and = are searched literally.
+            $needle = strtr($search, ['=' => '==', '%' => '=%', '_' => '=_']);
+            $like = '%' . $needle . '%';
+            $where[] = "(title LIKE :q_title ESCAPE '=' OR artist LIKE :q_artist ESCAPE '=' OR album LIKE :q_album ESCAPE '=' OR genre LIKE :q_genre ESCAPE '=')";
+            $params['q_title'] = $like;
+            $params['q_artist'] = $like;
+            $params['q_album'] = $like;
+            $params['q_genre'] = $like;
+        }
+
+        if (!empty($filters['favorite'])) {
+            $where[] = 'favorite = 1';
+        }
+
+        return [$where, $params];
     }
 }

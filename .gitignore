@@ -1,0 +1,11 @@
+/storage/*
+!/storage/.htaccess
+!/storage/logs/
+!/storage/music/
+!/storage/tmp/
+/storage/logs/*
+!/storage/logs/.htaccess
+/storage/music/*
+!/storage/music/.htaccess
+/storage/tmp/*
+!/storage/tmp/.htaccess

@@ -12,19 +12,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             'ok' => true,
             'tracks' => [],
             'stats' => ['total_tracks' => 0, 'storage_bytes' => 0, 'storage_human' => '0 B', 'total_plays' => 0, 'favorites' => 0],
+            'pagination' => ['page' => 1, 'limit' => 100, 'total' => 0, 'total_pages' => 0, 'has_more' => false],
         ]);
     }
 
-    $tracks = $service->list($userId, [
+    $page = max((int) ($_GET['page'] ?? 1), 1);
+    $limit = min(max((int) ($_GET['limit'] ?? 100), 20), 200);
+    $filters = [
         'q' => (string) ($_GET['q'] ?? ''),
         'sort' => (string) ($_GET['sort'] ?? 'newest'),
         'favorite' => (int) ($_GET['favorite'] ?? 0),
-        'limit' => 300,
+    ];
+    $total = $service->count($userId, $filters);
+    $tracks = $service->list($userId, $filters + [
+        'limit' => $limit,
+        'offset' => ($page - 1) * $limit,
     ]);
+    $totalPages = $total === 0 ? 0 : (int) ceil($total / $limit);
     Response::json([
         'ok' => true,
         'tracks' => array_map([$service, 'formatTrack'], $tracks),
         'stats' => $service->stats($userId),
+        'pagination' => [
+            'page' => $page,
+            'limit' => $limit,
+            'total' => $total,
+            'total_pages' => $totalPages,
+            'has_more' => $page < $totalPages,
+        ],
     ]);
 }
 

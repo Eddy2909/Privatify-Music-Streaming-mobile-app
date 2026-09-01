@@ -6,9 +6,10 @@ final class PlaylistService
 {
     public function list(int $userId): array
     {
-        $stmt = Db::pdo()->prepare('SELECT p.id, p.name, p.description, p.created_at, COUNT(pt.track_id) AS track_count
+        $stmt = Db::pdo()->prepare('SELECT p.id, p.name, p.description, p.created_at, COUNT(t.id) AS track_count
             FROM playlists p
             LEFT JOIN playlist_tracks pt ON pt.playlist_id = p.id
+            LEFT JOIN tracks t ON t.id = pt.track_id AND t.deleted_at IS NULL
             WHERE p.user_id = :user_id
             GROUP BY p.id
             ORDER BY p.created_at DESC');
@@ -30,8 +31,10 @@ final class PlaylistService
 
     public function get(int $userId, int $playlistId): array
     {
-        $stmt = Db::pdo()->prepare('SELECT p.id, p.name, p.description, p.created_at, COUNT(pt.track_id) AS track_count
-            FROM playlists p LEFT JOIN playlist_tracks pt ON pt.playlist_id = p.id
+        $stmt = Db::pdo()->prepare('SELECT p.id, p.name, p.description, p.created_at, COUNT(t.id) AS track_count
+            FROM playlists p
+            LEFT JOIN playlist_tracks pt ON pt.playlist_id = p.id
+            LEFT JOIN tracks t ON t.id = pt.track_id AND t.deleted_at IS NULL
             WHERE p.id = :id AND p.user_id = :user_id GROUP BY p.id LIMIT 1');
         $stmt->execute(['id' => $playlistId, 'user_id' => $userId]);
         $playlist = $stmt->fetch();

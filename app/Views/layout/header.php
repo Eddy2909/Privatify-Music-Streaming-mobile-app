@@ -16,7 +16,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="icon" href="assets/icons/icon-192.png" sizes="192x192" type="image/png">
-    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+    <link rel="apple-touch-icon" href="assets/icons/icon-180.png" sizes="180x180">
     <link rel="stylesheet" href="assets/css/app.css">
 </head>
 <body data-app="<?= e($pageMode ?? 'app') ?>" data-auth="<?= Auth::check() ? 'user' : 'public' ?>">

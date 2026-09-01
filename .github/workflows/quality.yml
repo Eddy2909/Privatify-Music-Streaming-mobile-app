@@ -1,0 +1,27 @@
+name: Quality
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_sqlite
+      - name: PHP syntax
+        run: find . -type f -name '*.php' -not -path './.git/*' -print0 | xargs -0 -n1 php -l
+      - name: PHP smoke tests
+        run: php tests/run.php
+      - name: JavaScript syntax
+        run: |
+          node --check assets/js/app.js
+          node --check assets/js/pwa.js
+          node --check service-worker.js

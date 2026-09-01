@@ -29,3 +29,42 @@ body[data-app="player"]{background:radial-gradient(circle at 18% 0%,rgba(30,215,
 
 .mobile-skip-actions{display:none;gap:8px;margin-top:8px}.mini-skip{width:42px;height:34px;padding:0;font-size:.92rem}.now-copy{min-width:0}
 @media (max-width:520px){.mobile-skip-actions{display:flex}.docked-player .now{align-items:flex-start}.docked-player .now-copy{display:grid;gap:1px}.docked-player{grid-template-columns:minmax(0,1fr) 58px}.docked-player .transport{align-self:start}.docked-player #prevTrack,.docked-player #nextTrack{display:none}}
+
+/* Search pagination and roomier track metadata */
+.list-footer{display:flex;justify-content:center;padding:16px;border-top:1px solid var(--line)}
+.list-footer:has(.btn[hidden]){display:none}
+.now-copy{min-width:0;flex:1}.now .cover{flex:0 0 48px}
+.now strong{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.2;overflow:hidden}
+.now span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.track-title,.song-main strong{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.22;overflow:hidden}
+.track-sub,.song-main>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.queue-now strong{white-space:normal;overflow-wrap:anywhere}
+
+@media (min-width:1051px){
+  .player:not(.docked-player){grid-template-columns:minmax(300px,1.4fr) 140px minmax(180px,1fr) 56px 100px}
+  .track-row{grid-template-columns:48px minmax(300px,2.5fr) minmax(100px,.7fr) 82px 82px 138px}
+}
+@media (min-width:861px){
+  .docked-player{grid-template-columns:minmax(300px,1.4fr) 140px minmax(170px,1fr) 56px 100px}
+  .song-row{grid-template-columns:52px minmax(260px,1fr) 92px 82px 82px}
+  .song-row.no-actions{grid-template-columns:52px minmax(320px,1fr) 92px 82px}
+}
+@media (max-width:1050px){
+  .player:not(.docked-player){grid-template-columns:minmax(0,1fr) 132px;grid-template-areas:"now btn" "seek seek" "time vol"}
+  .player:not(.docked-player) .transport{grid-area:btn}
+  .player:not(.docked-player) .transport .player-btn{grid-area:auto}
+}
+@media (max-width:860px){
+  .song-row.no-actions{grid-template-columns:38px minmax(0,1fr)}
+}
+@media (max-width:520px){
+  .player-main,.main{padding-bottom:205px}
+  .docked-player{grid-template-columns:minmax(0,1fr) 110px;grid-template-areas:"now now" "transport transport" "seek seek" "time vol"}
+  .docked-player .transport{grid-area:transport;justify-self:center;align-self:center}
+  .docked-player #prevTrack,.docked-player #nextTrack{display:inline-block}
+  .player:not(.docked-player){grid-template-columns:minmax(0,1fr) 110px;grid-template-areas:"now now" "btn btn" "seek seek" "time vol"}
+  .player:not(.docked-player) .transport{justify-self:center}
+  .mobile-skip-actions{display:none!important}
+  .docked-player .now{min-width:0}.docked-player .cover{width:42px;height:42px;flex-basis:42px}
+  .docked-player .now strong{font-size:.92rem}.docked-player .now span{font-size:.78rem}
+}

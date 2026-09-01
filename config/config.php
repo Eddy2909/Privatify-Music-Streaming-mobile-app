@@ -9,7 +9,14 @@ return [
         'debug' => false,
         'timezone' => 'Europe/Berlin',
         'session_name' => 'PRIVATEFYSESSID',
-        'session_lifetime_seconds' => 43200,
+        // Rolling login lifetime: an active login remains valid for 30 days.
+        'session_lifetime_seconds' => 2592000,
+        'session_cookie_lifetime_seconds' => 2592000,
+        'session_regeneration_seconds' => 86400,
+        'login_rate_limit_window_seconds' => 900,
+        'login_rate_limit_lock_seconds' => 900,
+        'login_rate_limit_per_login' => 8,
+        'login_rate_limit_per_ip' => 30,
         'upload_max_bytes' => 104857600,
         'allowed_mime_types' => [
             'audio/mpeg',
