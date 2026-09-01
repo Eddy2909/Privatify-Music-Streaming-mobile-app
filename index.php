@@ -79,20 +79,34 @@ require __DIR__ . '/app/Views/layout/header.php';
 
         <section class="player-library" aria-labelledby="libraryHeading">
             <div class="library-head player-library-head">
-                <div>
+                <div class="library-title-block">
                     <p class="eyebrow" id="playerContext">Bibliothek</p>
-                    <h2 id="libraryHeading">Alle Songs</h2>
+                    <div class="library-title-line">
+                        <h2 id="libraryHeading">Alle Songs</h2>
+                        <button id="backToAllBtn" class="filter-back" type="button" hidden>
+                            <span aria-hidden="true">←</span>
+                            Alle Songs
+                        </button>
+                    </div>
                 </div>
-                <div class="filters">
-                    <button id="backToAllBtn" class="btn ghost filter-back" type="button" hidden>Alle Songs</button>
-                    <input id="playerSearchInput" class="field search" type="search" placeholder="Titel, Interpret, Album oder Genre suchen" autocomplete="off" aria-label="Musik durchsuchen">
-                    <select id="playerSortSelect" class="field select" aria-label="Sortierung">
-                        <option value="newest">Neueste zuerst</option>
-                        <option value="title">Titel A-Z</option>
-                        <option value="artist">Artist A-Z</option>
-                        <option value="popular">Meist gehört</option>
-                        <option value="played">Zuletzt gehört</option>
-                    </select>
+                <div class="filters filter-toolbar player-filter-toolbar">
+                    <label class="filter-search" for="playerSearchInput">
+                        <svg class="filter-search-icon" aria-hidden="true" viewBox="0 0 24 24" width="20" height="20">
+                            <path d="m21 21-4.35-4.35m2.35-5.15a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        </svg>
+                        <span class="filter-label">Suche</span>
+                        <input id="playerSearchInput" class="field search" type="search" placeholder="Titel, Interpret, Album oder Genre" autocomplete="off">
+                    </label>
+                    <label class="filter-sort" for="playerSortSelect">
+                        <span class="filter-label">Sortieren</span>
+                        <select id="playerSortSelect" class="field select">
+                            <option value="newest">Neueste zuerst</option>
+                            <option value="title">Titel A–Z</option>
+                            <option value="artist">Artist A–Z</option>
+                            <option value="popular">Meist gehört</option>
+                            <option value="played">Zuletzt gehört</option>
+                        </select>
+                    </label>
                 </div>
             </div>
 

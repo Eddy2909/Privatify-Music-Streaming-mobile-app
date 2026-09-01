@@ -79,21 +79,30 @@ require __DIR__ . '/app/Views/layout/header.php';
             <div id="uploadMessages" class="messages"></div>
         </section>
 
-        <section class="library-head">
-            <div>
+        <section class="library-head admin-library-head">
+            <div class="library-title-block">
                 <p class="eyebrow">Bibliothek</p>
                 <h2>Alle Tracks</h2>
             </div>
-            <div class="filters">
-                <input id="searchInput" class="field search" type="search" placeholder="Titel, Interpret, Album oder Genre suchen" autocomplete="off" aria-label="Musik durchsuchen">
-                <select id="sortSelect" class="field select" aria-label="Sortierung">
-                    <option value="newest">Neueste zuerst</option>
-                    <option value="title">Titel A-Z</option>
-                    <option value="artist">Artist A-Z</option>
-                    <option value="popular">Meist gehört</option>
-                    <option value="played">Zuletzt gehört</option>
-                </select>
-                <button id="favoriteFilter" class="btn ghost" type="button">Favoriten</button>
+            <div class="filters filter-toolbar admin-filter-toolbar">
+                <label class="filter-search" for="searchInput">
+                    <svg class="filter-search-icon" aria-hidden="true" viewBox="0 0 24 24" width="20" height="20">
+                        <path d="m21 21-4.35-4.35m2.35-5.15a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                    <span class="filter-label">Suche</span>
+                    <input id="searchInput" class="field search" type="search" placeholder="Titel, Interpret, Album oder Genre" autocomplete="off">
+                </label>
+                <label class="filter-sort" for="sortSelect">
+                    <span class="filter-label">Sortieren</span>
+                    <select id="sortSelect" class="field select">
+                        <option value="newest">Neueste zuerst</option>
+                        <option value="title">Titel A–Z</option>
+                        <option value="artist">Artist A–Z</option>
+                        <option value="popular">Meist gehört</option>
+                        <option value="played">Zuletzt gehört</option>
+                    </select>
+                </label>
+                <button id="favoriteFilter" class="btn ghost filter-favorite" type="button">Favoriten</button>
             </div>
         </section>
 
