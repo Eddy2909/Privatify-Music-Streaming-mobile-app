@@ -10,6 +10,12 @@
   let deferredPrompt = null;
   const buttons = () => document.querySelectorAll('[data-pwa-install]');
   const setVisible = (visible) => buttons().forEach((el) => { el.hidden = !visible; });
+  const isStandalone = () =>
+    window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+  // Always offer the control, even when the browser does not deliver a native
+  // install prompt (then the click opens the manual instructions instead).
+  if (!isStandalone()) setVisible(true);
 
   // Chrome/Edge (Android + Desktop) fire this once the app is installable.
   window.addEventListener('beforeinstallprompt', (event) => {
