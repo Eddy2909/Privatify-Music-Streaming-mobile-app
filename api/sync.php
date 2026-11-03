@@ -38,22 +38,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $stmt->execute(['user_id' => $userId]);
     $row = $stmt->fetch();
 
+    $isPlaying = $row ? ((int) $row['is_playing'] === 1) : false;
+    $updatedTs = $row ? (int) $row['updated_ts'] : 0;
+
+    // A device that closed/crashed without pushing a pause keeps is_playing=1.
+    // Clients send a heartbeat while playing, so an old timestamp means: stopped.
+    if ($isPlaying && (time() - $updatedTs) > 60) {
+        $isPlaying = false;
+    }
+
     $track = null;
-    if ($row && $row['track_id'] !== null) {
+    if ($isPlaying && $row['track_id'] !== null) {
         $owned = $trackService->getOwned($userId, (int) $row['track_id']);
         if ($owned) {
             $track = $trackService->formatTrack($owned);
         }
     }
 
+    // While nothing plays the state reports no track at all.
     Response::json([
         'ok' => true,
         'state' => $row ? [
-            'track_id' => $row['track_id'] !== null ? (int) $row['track_id'] : null,
-            'is_playing' => (int) $row['is_playing'] === 1,
+            'track_id' => ($isPlaying && $row['track_id'] !== null) ? (int) $row['track_id'] : null,
+            'is_playing' => $isPlaying,
             'device_id' => (string) $row['device_id'],
             'device_label' => (string) $row['device_label'],
-            'updated_ts' => (int) $row['updated_ts'],
+            'updated_ts' => $updatedTs,
             'track' => $track,
         ] : null,
     ]);

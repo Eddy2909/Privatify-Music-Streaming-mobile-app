@@ -724,6 +724,12 @@
     // Snappy handoff: poll frequently while the tab is visible; pause when hidden.
     setInterval(poll, 2500);
     setTimeout(poll, 600);
+    // Heartbeat while playing so the server can tell an active device from a
+    // closed one (stale state is reported as "nothing playing" after 60s).
+    setInterval(() => {
+      const audio = audioEl();
+      if (state.current && audio && !audio.paused) pushState();
+    }, 20000);
   }
 
   function initPlayer() {
