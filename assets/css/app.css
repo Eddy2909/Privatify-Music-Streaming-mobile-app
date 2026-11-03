@@ -166,3 +166,9 @@ body[data-app="player"]{background:radial-gradient(circle at 18% 0%,rgba(30,215,
   .library-title-line{align-items:flex-start;gap:9px}
   .filter-back{min-height:30px;padding:5px 9px}
 }
+
+/* Cross-device sync prompt */
+.sync-prompt{position:fixed;left:50%;bottom:104px;transform:translateX(-50%);z-index:90;width:min(600px,calc(100vw - 24px));display:flex;gap:12px;align-items:center;flex-wrap:wrap;border:1px solid rgba(30,215,96,.5);background:#0b1017;box-shadow:var(--shadow);padding:14px 16px}
+.sync-prompt p{margin:0;flex:1 1 260px;color:var(--text);font-size:.92rem;line-height:1.4}
+.sync-prompt .btn{padding:9px 13px}
+@media (max-width:520px){.sync-prompt{bottom:205px}.sync-prompt p{flex-basis:100%}.sync-prompt .btn{flex:1}}
