@@ -1,6 +1,32 @@
 Options -Indexes
 DirectoryIndex index.php
 
+# --- Zugriffsschutz ---------------------------------------------------------
+# Auf Hosts, deren AllowOverride kein AuthConfig erlaubt, wird ein "Require"
+# still ignoriert. Deshalb zusaetzlich ueber mod_rewrite (Klasse FileInfo, wie
+# Header) sperren - das funktioniert dort zuverlaessig.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # 1) Versteckte Dateien/Ordner (.user.ini, .htaccess, .git, ...); .well-known bleibt frei
+    RewriteRule (^|/)\.(?!well-known/) - [F]
+
+    # 2) Sensible Dateitypen
+    RewriteRule \.(sql|md|ini|log|bak|orig|conf)$ - [F,NC]
+
+    # 3) Interne Anwendungsordner und Datenverzeichnis
+    RewriteRule ^(app|config|storage)(/|$) - [F,NC]
+</IfModule>
+
+# Fallback, falls mod_rewrite fehlt
+<IfModule !mod_rewrite.c>
+    <IfModule mod_alias.c>
+        RedirectMatch 403 (^|/)\.(?!well-known/)
+        RedirectMatch 403 (?i)\.(sql|md|ini|log|bak|orig|conf)$
+        RedirectMatch 403 (?i)^/(app|config|storage)/
+    </IfModule>
+</IfModule>
+
 <IfModule mod_mime.c>
     AddType application/manifest+json .webmanifest
 </IfModule>
