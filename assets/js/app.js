@@ -157,6 +157,31 @@
     const nextControls = $$('#nextTrack');
     if (!audio || !player) return null;
 
+    // Media Session: gives the OS/browser media preview (lock screen, media
+    // notification, Windows/macOS media widget) metadata plus play + skip.
+    const mediaArtwork = [
+      {src: 'assets/icons/icon-192.png', sizes: '192x192', type: 'image/png'},
+      {src: 'assets/icons/icon-512.png', sizes: '512x512', type: 'image/png'}
+    ];
+    const hasMediaSession = 'mediaSession' in navigator && typeof window.MediaMetadata === 'function';
+
+    function updateMediaSession(track) {
+      if (!hasMediaSession || !track) return;
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: track.title || 'Unbekannter Titel',
+          artist: track.artist || 'Unbekannter Artist',
+          album: track.album || 'Privatefy',
+          artwork: mediaArtwork
+        });
+      } catch (_) {}
+    }
+
+    function setMediaSessionState(playing) {
+      if (!('mediaSession' in navigator)) return;
+      try { navigator.mediaSession.playbackState = playing ? 'playing' : 'paused'; } catch (_) {}
+    }
+
     const api = {
       playTrack(track, queue = null) {
         if (!track) return;
@@ -170,6 +195,7 @@
         text(nowTitle, track.title);
         text(nowArtist, track.artist || 'Unbekannter Artist');
         text(playPause, '❚❚');
+        updateMediaSession(track);
         renderQueueState(state);
         if (typeof state.onTrackChange === 'function') state.onTrackChange(track);
       },
@@ -186,12 +212,32 @@
       }
     };
 
+    if (hasMediaSession) {
+      const mediaHandlers = {
+        play: () => { audio.play().catch(() => {}); },
+        pause: () => { audio.pause(); },
+        previoustrack: () => api.prev(),
+        nexttrack: () => api.next(),
+        seekbackward: (details) => { audio.currentTime = Math.max(0, audio.currentTime - (details?.seekOffset || 10)); },
+        seekforward: (details) => {
+          const target = audio.currentTime + (details?.seekOffset || 10);
+          audio.currentTime = Number.isFinite(audio.duration) ? Math.min(audio.duration, target) : target;
+        },
+        seekto: (details) => {
+          if (typeof details?.seekTime === 'number') audio.currentTime = details.seekTime;
+        }
+      };
+      Object.entries(mediaHandlers).forEach(([action, handler]) => {
+        try { navigator.mediaSession.setActionHandler(action, handler); } catch (_) {}
+      });
+    }
+
     playPause?.addEventListener('click', () => {
       if (!state.current) return;
       if (audio.paused) { audio.play(); text(playPause, '❚❚'); } else { audio.pause(); text(playPause, '▶'); }
     });
-    audio.addEventListener('pause', () => text(playPause, '▶'));
-    audio.addEventListener('play', () => text(playPause, '❚❚'));
+    audio.addEventListener('pause', () => { text(playPause, '▶'); setMediaSessionState(false); });
+    audio.addEventListener('play', () => { text(playPause, '❚❚'); setMediaSessionState(true); });
     audio.addEventListener('timeupdate', () => {
       if (!Number.isFinite(audio.duration) || audio.duration <= 0) return;
       seek.value = String(Math.round((audio.currentTime / audio.duration) * 1000));

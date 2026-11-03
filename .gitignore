@@ -9,3 +9,6 @@
 !/storage/music/.htaccess
 /storage/tmp/*
 !/storage/tmp/.htaccess
+/storage/sessions/*
+!/storage/sessions/
+!/storage/sessions/.htaccess
