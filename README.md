@@ -51,6 +51,16 @@ Geschuetzt:
 
 Wenn im Webroot eine `index.html` neben `index.php` liegt, kann Apache je nach `DirectoryIndex` zuerst `index.html` ausliefern. Fuer den Player als Startseite sollte `index.php` Vorrang haben oder `index.html` entfernt/umbenannt werden.
 
+## Zugriffsschutz auf nginx
+
+Die mitgelieferten `.htaccess`-Dateien schützen nur auf Apache. Auf nginx
+(oder nginx vor Apache) werden sie ignoriert – sensible Dateien wie
+`schema.sql`, `README.md` oder `.user.ini` sind sonst öffentlich abrufbar.
+
+In diesem Fall die Regeln aus `deploy/nginx-security.conf` als
+"Additional nginx directives" im Hosting-Panel einhängen und anschließend
+prüfen (`/schema.sql` und `/.user.ini` müssen 403 liefern).
+
 ## PWA, Handy-Verknuepfung und Favicon
 
 Die App bringt jetzt eine PWA-Grundkonfiguration mit:

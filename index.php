@@ -32,6 +32,7 @@ require __DIR__ . '/app/Views/layout/header.php';
             <?php else: ?>
                 <a class="nav-item" href="login.php">Login</a>
             <?php endif; ?>
+            <button class="nav-item pwa-install-control" type="button" data-pwa-install hidden>App installieren</button>
         </nav>
         <section class="sidebar-block">
             <div class="section-title">Playlists</div>

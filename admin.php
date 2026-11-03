@@ -28,6 +28,7 @@ require __DIR__ . '/app/Views/layout/header.php';
             <button class="nav-item active" data-view="library">Admin Library</button>
             <button class="nav-item" data-scroll="uploadPanel">Upload</button>
             <button class="nav-item" data-scroll="playlistPanel">Playlists</button>
+            <button class="nav-item pwa-install-control" type="button" data-pwa-install hidden>App installieren</button>
         </nav>
         <section class="sidebar-block" id="playlistPanel">
             <div class="section-title">Playlists</div>
