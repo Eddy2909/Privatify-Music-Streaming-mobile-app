@@ -614,6 +614,7 @@
       body.append('track_id', state.current ? String(state.current.id) : '0');
       const audio = audioEl();
       body.append('is_playing', audio && !audio.paused ? '1' : '0');
+      body.append('position_seconds', String(audio ? Math.max(0, Math.floor(audio.currentTime || 0)) : 0));
       try {
         const json = await post('api/sync.php', body);
         if (json && json.updated_ts) knownTs = Number(json.updated_ts);
@@ -630,7 +631,17 @@
       const queue = Array.isArray(state.queue) && state.queue.length ? state.queue : [remote.track];
       state.audioController.playTrack(remote.track, queue);
       const audio = audioEl();
-      if (audio && !remote.is_playing) audio.pause();
+      if (!audio) return;
+      // Resume where the other device left off.
+      const position = Number(remote.position_seconds) || 0;
+      const seek = () => {
+        try {
+          if (position > 0 && (!Number.isFinite(audio.duration) || position < audio.duration)) audio.currentTime = position;
+        } catch (_) {}
+      };
+      if (audio.readyState >= 1) seek();
+      else audio.addEventListener('loadedmetadata', seek, {once: true});
+      if (!remote.is_playing) audio.pause();
     }
 
     let promptEl = null;
@@ -729,7 +740,7 @@
     setInterval(() => {
       const audio = audioEl();
       if (state.current && audio && !audio.paused) pushState();
-    }, 20000);
+    }, 15000);
   }
 
   function initPlayer() {

@@ -18,6 +18,7 @@ try {
           user_id BIGINT UNSIGNED NOT NULL,
           track_id BIGINT UNSIGNED NULL,
           is_playing TINYINT(1) NOT NULL DEFAULT 0,
+          position_seconds INT UNSIGNED NOT NULL DEFAULT 0,
           device_id VARCHAR(64) NOT NULL DEFAULT \'\',
           device_label VARCHAR(64) NOT NULL DEFAULT \'\',
           updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -26,13 +27,18 @@ try {
           CONSTRAINT fk_playback_state_track FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE SET NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
+    // Upgrade for tables created before position_seconds existed.
+    $columns = $pdo->query('SHOW COLUMNS FROM playback_state')->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('position_seconds', $columns, true)) {
+        $pdo->exec('ALTER TABLE playback_state ADD COLUMN position_seconds INT UNSIGNED NOT NULL DEFAULT 0');
+    }
 } catch (Throwable $e) {
     error_log('Privatefy sync: playback_state ensure failed: ' . $e->getMessage());
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $stmt = $pdo->prepare(
-        'SELECT track_id, is_playing, device_id, device_label, UNIX_TIMESTAMP(updated_at) AS updated_ts
+        'SELECT track_id, is_playing, position_seconds, device_id, device_label, UNIX_TIMESTAMP(updated_at) AS updated_ts
          FROM playback_state WHERE user_id = :user_id LIMIT 1'
     );
     $stmt->execute(['user_id' => $userId]);
@@ -61,6 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         'state' => $row ? [
             'track_id' => ($isPlaying && $row['track_id'] !== null) ? (int) $row['track_id'] : null,
             'is_playing' => $isPlaying,
+            'position_seconds' => (int) $row['position_seconds'],
             'device_id' => (string) $row['device_id'],
             'device_label' => (string) $row['device_label'],
             'updated_ts' => $updatedTs,
@@ -75,6 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $deviceId = clean_string((string) ($_POST['device_id'] ?? ''), 64);
     $deviceLabel = clean_string((string) ($_POST['device_label'] ?? ''), 64);
     $isPlaying = !empty($_POST['is_playing']) ? 1 : 0;
+    $positionSeconds = max(0, (int) ($_POST['position_seconds'] ?? 0));
     $trackId = (int) ($_POST['track_id'] ?? 0);
 
     if ($deviceId === '') {
@@ -85,11 +93,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $stmt = $pdo->prepare(
-        'INSERT INTO playback_state (user_id, track_id, is_playing, device_id, device_label, updated_at)
-         VALUES (:user_id, :track_id, :is_playing, :device_id, :device_label, NOW())
+        'INSERT INTO playback_state (user_id, track_id, is_playing, position_seconds, device_id, device_label, updated_at)
+         VALUES (:user_id, :track_id, :is_playing, :position_seconds, :device_id, :device_label, NOW())
          ON DUPLICATE KEY UPDATE
             track_id = VALUES(track_id),
             is_playing = VALUES(is_playing),
+            position_seconds = VALUES(position_seconds),
             device_id = VALUES(device_id),
             device_label = VALUES(device_label),
             updated_at = NOW()'
@@ -98,6 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'user_id' => $userId,
         'track_id' => $trackId > 0 ? $trackId : null,
         'is_playing' => $isPlaying,
+        'position_seconds' => $positionSeconds,
         'device_id' => $deviceId,
         'device_label' => $deviceLabel,
     ]);
