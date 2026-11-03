@@ -698,8 +698,9 @@
     audioEl()?.addEventListener('play', schedulePush);
     audioEl()?.addEventListener('pause', schedulePush);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
-    setInterval(poll, 12000);
-    setTimeout(poll, 1500);
+    // Snappy handoff: poll frequently while the tab is visible; pause when hidden.
+    setInterval(poll, 2500);
+    setTimeout(poll, 600);
   }
 
   function initPlayer() {
