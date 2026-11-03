@@ -34,7 +34,9 @@ $error = '';
 $configLooksDefault = (string) Config::get('db.password') === 'CHANGE_ME' || str_contains((string) Config::get('app.cron_token'), 'CHANGE_THIS');
 
 try {
-    if (!table_exists('users')) {
+    // Every statement in schema.sql is CREATE TABLE IF NOT EXISTS, so importing is
+    // idempotent and also adds tables introduced after an earlier installation.
+    if (!table_exists('users') || !table_exists('playback_state')) {
         import_schema();
     }
     $alreadyInstalled = Auth::adminCount() > 0;

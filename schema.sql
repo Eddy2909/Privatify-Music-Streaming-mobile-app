@@ -68,6 +68,18 @@ CREATE TABLE IF NOT EXISTS playlist_tracks (
   CONSTRAINT fk_playlist_tracks_track FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS playback_state (
+  user_id BIGINT UNSIGNED NOT NULL,
+  track_id BIGINT UNSIGNED NULL,
+  is_playing TINYINT(1) NOT NULL DEFAULT 0,
+  device_id VARCHAR(64) NOT NULL DEFAULT '',
+  device_label VARCHAR(64) NOT NULL DEFAULT '',
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id),
+  CONSTRAINT fk_playback_state_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_playback_state_track FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS playback_events (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id BIGINT UNSIGNED NOT NULL,

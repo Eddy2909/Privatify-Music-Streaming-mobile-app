@@ -15,6 +15,21 @@ final class Session
         $name = (string) Config::get('app.session_name', 'PRIVATEFYSESSID');
         $lifetime = max(3600, (int) Config::get('app.session_lifetime_seconds', 2592000));
         $cookieLifetime = max(3600, (int) Config::get('app.session_cookie_lifetime_seconds', $lifetime));
+
+        // Keep session files in a private directory. On shared hosting the default
+        // (shared) session directory is garbage-collected by *other* sites' PHP
+        // requests using their own short gc_maxlifetime, which deletes our session
+        // files early and logs the user out despite the long lifetimes above.
+        $sessionDir = app_root() . '/storage/sessions';
+        if (!is_dir($sessionDir)) {
+            @mkdir($sessionDir, 0700, true);
+        }
+        if (is_dir($sessionDir) && is_writable($sessionDir)) {
+            ini_set('session.save_path', $sessionDir);
+            ini_set('session.gc_probability', '1');
+            ini_set('session.gc_divisor', '100');
+        }
+
         session_name($name);
         session_set_cookie_params([
             'lifetime' => $cookieLifetime,
@@ -31,7 +46,10 @@ final class Session
         session_start();
 
         $now = time();
-        $fingerprint = hash('sha256', $_SERVER['HTTP_USER_AGENT'] ?? 'unknown');
+        // Coarse fingerprint: strip version/OS numbers so routine browser or OS
+        // updates (which change the User-Agent string) do not force a logout.
+        $uaSignature = preg_replace('/\d+(\.\d+)*/', '', (string) ($_SERVER['HTTP_USER_AGENT'] ?? 'unknown'));
+        $fingerprint = hash('sha256', strtolower(trim(preg_replace('/\s+/', ' ', (string) $uaSignature))));
         if (!isset($_SESSION['_fingerprint'])) {
             $_SESSION['_fingerprint'] = $fingerprint;
         } elseif (!hash_equals((string) $_SESSION['_fingerprint'], $fingerprint)) {

@@ -157,6 +157,31 @@
     const nextControls = $$('#nextTrack');
     if (!audio || !player) return null;
 
+    // Media Session: gives the OS/browser media preview (lock screen, media
+    // notification, Windows/macOS media widget) metadata plus play + skip.
+    const mediaArtwork = [
+      {src: 'assets/icons/icon-192.png', sizes: '192x192', type: 'image/png'},
+      {src: 'assets/icons/icon-512.png', sizes: '512x512', type: 'image/png'}
+    ];
+    const hasMediaSession = 'mediaSession' in navigator && typeof window.MediaMetadata === 'function';
+
+    function updateMediaSession(track) {
+      if (!hasMediaSession || !track) return;
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: track.title || 'Unbekannter Titel',
+          artist: track.artist || 'Unbekannter Artist',
+          album: track.album || 'Privatefy',
+          artwork: mediaArtwork
+        });
+      } catch (_) {}
+    }
+
+    function setMediaSessionState(playing) {
+      if (!('mediaSession' in navigator)) return;
+      try { navigator.mediaSession.playbackState = playing ? 'playing' : 'paused'; } catch (_) {}
+    }
+
     const api = {
       playTrack(track, queue = null) {
         if (!track) return;
@@ -170,6 +195,7 @@
         text(nowTitle, track.title);
         text(nowArtist, track.artist || 'Unbekannter Artist');
         text(playPause, '❚❚');
+        updateMediaSession(track);
         renderQueueState(state);
         if (typeof state.onTrackChange === 'function') state.onTrackChange(track);
       },
@@ -186,12 +212,32 @@
       }
     };
 
+    if (hasMediaSession) {
+      const mediaHandlers = {
+        play: () => { audio.play().catch(() => {}); },
+        pause: () => { audio.pause(); },
+        previoustrack: () => api.prev(),
+        nexttrack: () => api.next(),
+        seekbackward: (details) => { audio.currentTime = Math.max(0, audio.currentTime - (details?.seekOffset || 10)); },
+        seekforward: (details) => {
+          const target = audio.currentTime + (details?.seekOffset || 10);
+          audio.currentTime = Number.isFinite(audio.duration) ? Math.min(audio.duration, target) : target;
+        },
+        seekto: (details) => {
+          if (typeof details?.seekTime === 'number') audio.currentTime = details.seekTime;
+        }
+      };
+      Object.entries(mediaHandlers).forEach(([action, handler]) => {
+        try { navigator.mediaSession.setActionHandler(action, handler); } catch (_) {}
+      });
+    }
+
     playPause?.addEventListener('click', () => {
       if (!state.current) return;
       if (audio.paused) { audio.play(); text(playPause, '❚❚'); } else { audio.pause(); text(playPause, '▶'); }
     });
-    audio.addEventListener('pause', () => text(playPause, '▶'));
-    audio.addEventListener('play', () => text(playPause, '❚❚'));
+    audio.addEventListener('pause', () => { text(playPause, '▶'); setMediaSessionState(false); });
+    audio.addEventListener('play', () => { text(playPause, '❚❚'); setMediaSessionState(true); });
     audio.addEventListener('timeupdate', () => {
       if (!Number.isFinite(audio.duration) || audio.duration <= 0) return;
       seek.value = String(Math.round((audio.currentTime / audio.duration) * 1000));
@@ -532,6 +578,112 @@
     $$('[data-scroll]').forEach(btn => btn.addEventListener('click', () => $('#' + btn.dataset.scroll)?.scrollIntoView({behavior:'smooth', block:'start'})));
   }
 
+  // Cross-device playback sync (song + play/pause). Logged-in only. Pushes local
+  // changes and polls for changes made on other devices, asking before taking over.
+  function initPlaybackSync(state) {
+    if (document.body?.dataset?.auth !== 'user') return;
+
+    const storageKey = 'privatefy.deviceId';
+    let deviceId = localStorage.getItem(storageKey);
+    if (!deviceId) {
+      deviceId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : ('d' + Math.random().toString(36).slice(2) + Date.now().toString(36));
+      localStorage.setItem(storageKey, deviceId);
+    }
+    const ua = navigator.userAgent;
+    const platform = /iPhone|iPad|iPod/i.test(ua) ? 'iOS' : /Android/i.test(ua) ? 'Android' : /Mac/i.test(ua) ? 'Mac' : /Win/i.test(ua) ? 'Windows' : 'Web';
+    const deviceLabel = `${platform} ${/Android|iPhone|iPad|iPod|Mobile/i.test(ua) ? 'Handy' : 'Browser'}`;
+
+    let knownTs = 0;
+    let primed = false;
+    let pushTimer = null;
+    const audioEl = () => document.getElementById('audio');
+
+    async function pushState() {
+      const body = new FormData();
+      body.append('device_id', deviceId);
+      body.append('device_label', deviceLabel);
+      body.append('track_id', state.current ? String(state.current.id) : '0');
+      const audio = audioEl();
+      body.append('is_playing', audio && !audio.paused ? '1' : '0');
+      try {
+        const json = await post('api/sync.php', body);
+        if (json && json.updated_ts) knownTs = Number(json.updated_ts);
+      } catch (_) {}
+    }
+
+    function schedulePush() {
+      clearTimeout(pushTimer);
+      pushTimer = setTimeout(pushState, 800);
+    }
+
+    function applyRemote(remote) {
+      if (!remote || !remote.track || !state.audioController) return;
+      const queue = Array.isArray(state.queue) && state.queue.length ? state.queue : [remote.track];
+      state.audioController.playTrack(remote.track, queue);
+      const audio = audioEl();
+      if (audio && !remote.is_playing) audio.pause();
+    }
+
+    function showPrompt(remote) {
+      let el = document.getElementById('syncPrompt');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'syncPrompt';
+        el.className = 'sync-prompt';
+        el.setAttribute('role', 'dialog');
+        el.setAttribute('aria-live', 'polite');
+        document.body.append(el);
+      }
+      const verb = remote.is_playing ? 'läuft' : 'ist pausiert';
+      const artist = remote.track.artist && remote.track.artist !== 'Unbekannter Artist' ? ` – ${remote.track.artist}` : '';
+      el.replaceChildren();
+      const p = document.createElement('p');
+      p.textContent = `Auf ${remote.device_label || 'einem anderen Gerät'} ${verb}: „${remote.track.title}${artist}". Hier übernehmen?`;
+      const accept = button('btn primary', 'Hier weiterhören', 'Wiedergabe auf diesem Gerät übernehmen');
+      accept.addEventListener('click', () => { el.remove(); applyRemote(remote); });
+      const dismiss = button('btn ghost', 'Ignorieren', 'Meldung schließen');
+      dismiss.addEventListener('click', () => el.remove());
+      el.append(p, accept, dismiss);
+    }
+
+    async function poll() {
+      if (document.hidden) return;
+      try {
+        const json = await getJson('api/sync.php');
+        const remote = json ? json.state : null;
+        if (!remote) { primed = true; return; }
+        if (!primed) {
+          primed = true;
+          knownTs = Number(remote.updated_ts || 0);
+          if (remote.device_id !== deviceId && remote.is_playing && remote.track) showPrompt(remote);
+          return;
+        }
+        if (Number(remote.updated_ts) > knownTs && remote.device_id !== deviceId) {
+          knownTs = Number(remote.updated_ts);
+          const cur = state.current;
+          const audio = audioEl();
+          const curPlaying = audio ? !audio.paused : false;
+          const differs = !cur || String(cur.id) !== String(remote.track_id) || curPlaying !== !!remote.is_playing;
+          if (remote.track && differs) showPrompt(remote);
+        }
+      } catch (_) {}
+    }
+
+    if (typeof state.onTrackChange === 'function') {
+      const previous = state.onTrackChange;
+      state.onTrackChange = (track) => { previous(track); schedulePush(); };
+    } else {
+      state.onTrackChange = () => schedulePush();
+    }
+    audioEl()?.addEventListener('play', schedulePush);
+    audioEl()?.addEventListener('pause', schedulePush);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+    setInterval(poll, 12000);
+    setTimeout(poll, 1500);
+  }
+
   function initPlayer() {
     const isPublic = document.body?.dataset?.auth === 'public';
     const state = { allTracks: [], tracks: [], playlists: [], current: null, currentIndex: 0, queue: [], q: '', sort: 'newest', filter: 'all', playlistId: null, page: 1, pageSize: 100, hasMore: false, libraryTotal: 0, totalFavorites: 0 };
@@ -839,6 +991,7 @@
     renderPlayerTracks();
     updatePlayerCounters();
     updatePlayerLoadMore();
+    initPlaybackSync(state);
   }
 
   function moveQueueItem(state, fromIndex, toIndex) {
