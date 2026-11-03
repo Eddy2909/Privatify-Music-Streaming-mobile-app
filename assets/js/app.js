@@ -661,16 +661,20 @@
         const json = await getJson('api/sync.php');
         const remote = json ? json.state : null;
         if (!remote) { primed = true; return; }
+        const audio = audioEl();
+        // A device that is currently playing its own music must not be interrupted
+        // by another device's state - otherwise two devices would ping-pong prompts.
+        const localActive = !!(state.current && audio && !audio.paused);
         if (!primed) {
           primed = true;
           knownTs = Number(remote.updated_ts || 0);
-          if (remote.device_id !== deviceId && remote.is_playing && remote.track) showPrompt(remote);
+          if (!localActive && remote.device_id !== deviceId && remote.is_playing && remote.track) showPrompt(remote);
           return;
         }
         if (Number(remote.updated_ts) > knownTs && remote.device_id !== deviceId) {
           knownTs = Number(remote.updated_ts);
+          if (localActive) return;
           const cur = state.current;
-          const audio = audioEl();
           const curPlaying = audio ? !audio.paused : false;
           const differs = !cur || String(cur.id) !== String(remote.track_id) || curPlaying !== !!remote.is_playing;
           if (remote.track && differs) showPrompt(remote);
