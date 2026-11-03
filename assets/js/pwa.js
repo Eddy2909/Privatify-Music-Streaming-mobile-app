@@ -1,9 +1,10 @@
 (() => {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('service-worker.js', {scope: './'}).catch(() => {
-        // PWA support is optional; the app must keep working if registration is blocked.
-      });
+      navigator.serviceWorker.register('service-worker.js', {scope: './'}).then(
+        (reg) => console.info('[Privatefy PWA] Service Worker aktiv:', reg.scope),
+        (err) => console.warn('[Privatefy PWA] Service Worker Registrierung fehlgeschlagen:', err)
+      );
     });
   }
 
@@ -21,6 +22,7 @@
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
     deferredPrompt = event;
+    console.info('[Privatefy PWA] Nativer Install-Dialog verfügbar.');
     setVisible(true);
   });
 
@@ -42,7 +44,9 @@
       return;
     }
 
-    // Fallback: manual instructions (iOS Safari, or a browser without the prompt).
+    // Fallback only when the browser offers no native prompt (e.g. already
+    // installed, or install suppressed). A website cannot force an install.
+    console.info('[Privatefy PWA] Kein nativer Prompt - Anleitung statt Dialog.');
     const dialog = document.getElementById('pwaInstallDialog');
     if (dialog && typeof dialog.showModal === 'function') dialog.showModal();
   });

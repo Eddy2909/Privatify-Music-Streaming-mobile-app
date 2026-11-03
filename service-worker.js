@@ -1,4 +1,4 @@
-const CACHE_NAME = 'privatefy-static-v3';
+const CACHE_NAME = 'privatefy-static-v4';
 const STATIC_ASSETS = [
   './assets/css/app.css',
   './assets/js/app.js',
@@ -14,7 +14,9 @@ const STATIC_ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(STATIC_ASSETS))
+      // Cache assets individually: one missing/blocked file must not abort the
+      // whole install (an unactivated service worker blocks PWA installation).
+      .then((cache) => Promise.allSettled(STATIC_ASSETS.map((url) => cache.add(url))))
       .then(() => self.skipWaiting())
   );
 });
