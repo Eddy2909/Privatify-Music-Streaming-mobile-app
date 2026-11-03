@@ -633,27 +633,36 @@
       if (audio && !remote.is_playing) audio.pause();
     }
 
+    let promptEl = null;
+    let promptKey = '';
+
+    function clearPrompt() {
+      if (promptEl) promptEl.remove();
+      promptEl = null;
+      promptKey = '';
+    }
+
     function showPrompt(remote) {
-      let el = document.getElementById('syncPrompt');
-      if (!el) {
-        el = document.createElement('div');
-        el.id = 'syncPrompt';
-        el.className = 'sync-prompt';
-        el.setAttribute('role', 'dialog');
-        el.setAttribute('aria-live', 'polite');
-        document.body.append(el);
-      }
+      const key = remote.device_id + ':' + remote.track_id + ':' + remote.updated_ts;
+      if (promptEl && promptKey === key) return;
+      clearPrompt();
+      const el = document.createElement('div');
+      el.id = 'syncPrompt';
+      el.className = 'sync-prompt';
+      el.setAttribute('role', 'dialog');
+      el.setAttribute('aria-live', 'polite');
       console.info('[Privatefy Sync] Nachfrage von', remote.device_label, remote.track.title);
-      const verb = remote.is_playing ? 'läuft' : 'ist pausiert';
       const artist = remote.track.artist && remote.track.artist !== 'Unbekannter Artist' ? ` – ${remote.track.artist}` : '';
-      el.replaceChildren();
       const p = document.createElement('p');
-      p.textContent = `Auf ${remote.device_label || 'einem anderen Gerät'} ${verb}: „${remote.track.title}${artist}". Hier übernehmen?`;
+      p.textContent = `Auf ${remote.device_label || 'einem anderen Gerät'} läuft: „${remote.track.title}${artist}". Hier übernehmen?`;
       const accept = button('btn primary', 'Hier weiterhören', 'Wiedergabe auf diesem Gerät übernehmen');
-      accept.addEventListener('click', () => { el.remove(); applyRemote(remote); });
+      accept.addEventListener('click', () => { clearPrompt(); applyRemote(remote); });
       const dismiss = button('btn ghost', 'Ignorieren', 'Meldung schließen');
-      dismiss.addEventListener('click', () => el.remove());
+      dismiss.addEventListener('click', () => clearPrompt());
       el.append(p, accept, dismiss);
+      document.body.append(el);
+      promptEl = el;
+      promptKey = key;
     }
 
     async function poll() {
@@ -661,11 +670,13 @@
       try {
         const json = await getJson('api/sync.php');
         const remote = json ? json.state : null;
-        if (!remote) { primed = true; return; }
         const audio = audioEl();
-        // A device that is currently playing its own music must not be interrupted
-        // by another device's state - otherwise two devices would ping-pong prompts.
         const localActive = !!(state.current && audio && !audio.paused);
+
+        // Hide the prompt again as soon as nothing is playing anymore.
+        if (promptEl && (!remote || !remote.is_playing || remote.device_id === deviceId)) clearPrompt();
+
+        if (!remote) { primed = true; return; }
         if (!primed) {
           primed = true;
           knownTs = Number(remote.updated_ts || 0);
@@ -675,16 +686,15 @@
         if (Number(remote.updated_ts) > knownTs && remote.device_id !== deviceId) {
           knownTs = Number(remote.updated_ts);
           const sameTrack = !!state.current && String(state.current.id) === String(remote.track_id);
-          // Handoff: another device just took over the exact track we are playing
-          // -> we must pause, so only one device keeps playing it.
+          // Handoff: another device took over the exact track we are playing.
           if (localActive && remote.is_playing && sameTrack) {
             audio.pause();
             return;
           }
-          // Two devices may intentionally play different songs: never interrupt
-          // a device that is currently playing its own track.
+          // Two devices may intentionally play different songs: never interrupt.
           if (localActive) return;
-          if (remote.track && !sameTrack) showPrompt(remote);
+          // Only ask while the other device is actually playing.
+          if (remote.is_playing && remote.track && !sameTrack) showPrompt(remote);
         }
       } catch (err) { warnOnce(err); }
     }
@@ -698,6 +708,19 @@
     audioEl()?.addEventListener('play', schedulePush);
     audioEl()?.addEventListener('pause', schedulePush);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+    // Best effort: on real unload clear our "playing" state so other devices stop
+    // showing the handoff prompt even if no pause event fired.
+    window.addEventListener('pagehide', () => {
+      const audio = audioEl();
+      if (!state.current || !audio || audio.paused) return;
+      const body = new FormData();
+      body.append('_csrf', csrf);
+      body.append('device_id', deviceId);
+      body.append('device_label', deviceLabel);
+      body.append('track_id', String(state.current.id));
+      body.append('is_playing', '0');
+      try { navigator.sendBeacon('api/sync.php', body); } catch (_) {}
+    });
     // Snappy handoff: poll frequently while the tab is visible; pause when hidden.
     setInterval(poll, 2500);
     setTimeout(poll, 600);
