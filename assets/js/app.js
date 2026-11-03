@@ -467,6 +467,7 @@
     renderTracks();
     renderPlaylists();
     updateAdminLoadMore();
+    initPlaybackSync(state);
   }
 
   function initUpload(refreshTracks, updateStats) {
@@ -598,7 +599,13 @@
     let knownTs = 0;
     let primed = false;
     let pushTimer = null;
+    let warned = false;
     const audioEl = () => document.getElementById('audio');
+    const warnOnce = (err) => {
+      if (warned) return;
+      warned = true;
+      console.warn('Privatefy Sync deaktiviert (Serverfehler):', err && err.message ? err.message : err);
+    };
 
     async function pushState() {
       const body = new FormData();
@@ -610,7 +617,7 @@
       try {
         const json = await post('api/sync.php', body);
         if (json && json.updated_ts) knownTs = Number(json.updated_ts);
-      } catch (_) {}
+      } catch (err) { warnOnce(err); }
     }
 
     function schedulePush() {
@@ -668,7 +675,7 @@
           const differs = !cur || String(cur.id) !== String(remote.track_id) || curPlaying !== !!remote.is_playing;
           if (remote.track && differs) showPrompt(remote);
         }
-      } catch (_) {}
+      } catch (err) { warnOnce(err); }
     }
 
     if (typeof state.onTrackChange === 'function') {

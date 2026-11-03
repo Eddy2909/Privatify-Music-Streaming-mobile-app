@@ -10,6 +10,26 @@ $userId = (int) Auth::id();
 $pdo = Db::pdo();
 $trackService = new TrackService();
 
+// Idempotent: create the table if a previous installation (or a removed
+// install.php) did not add it yet. Ignored if the DB user may not run DDL.
+try {
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS playback_state (
+          user_id BIGINT UNSIGNED NOT NULL,
+          track_id BIGINT UNSIGNED NULL,
+          is_playing TINYINT(1) NOT NULL DEFAULT 0,
+          device_id VARCHAR(64) NOT NULL DEFAULT \'\',
+          device_label VARCHAR(64) NOT NULL DEFAULT \'\',
+          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (user_id),
+          CONSTRAINT fk_playback_state_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          CONSTRAINT fk_playback_state_track FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
+} catch (Throwable $e) {
+    error_log('Privatefy sync: playback_state ensure failed: ' . $e->getMessage());
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $stmt = $pdo->prepare(
         'SELECT track_id, is_playing, device_id, device_label, UNIX_TIMESTAMP(updated_at) AS updated_ts
