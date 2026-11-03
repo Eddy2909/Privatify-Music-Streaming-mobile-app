@@ -643,6 +643,7 @@
         el.setAttribute('aria-live', 'polite');
         document.body.append(el);
       }
+      console.info('[Privatefy Sync] Nachfrage von', remote.device_label, remote.track.title);
       const verb = remote.is_playing ? 'läuft' : 'ist pausiert';
       const artist = remote.track.artist && remote.track.artist !== 'Unbekannter Artist' ? ` – ${remote.track.artist}` : '';
       el.replaceChildren();
@@ -673,11 +674,17 @@
         }
         if (Number(remote.updated_ts) > knownTs && remote.device_id !== deviceId) {
           knownTs = Number(remote.updated_ts);
+          const sameTrack = !!state.current && String(state.current.id) === String(remote.track_id);
+          // Handoff: another device just took over the exact track we are playing
+          // -> we must pause, so only one device keeps playing it.
+          if (localActive && remote.is_playing && sameTrack) {
+            audio.pause();
+            return;
+          }
+          // Two devices may intentionally play different songs: never interrupt
+          // a device that is currently playing its own track.
           if (localActive) return;
-          const cur = state.current;
-          const curPlaying = audio ? !audio.paused : false;
-          const differs = !cur || String(cur.id) !== String(remote.track_id) || curPlaying !== !!remote.is_playing;
-          if (remote.track && differs) showPrompt(remote);
+          if (remote.track && !sameTrack) showPrompt(remote);
         }
       } catch (err) { warnOnce(err); }
     }

@@ -168,7 +168,12 @@ body[data-app="player"]{background:radial-gradient(circle at 18% 0%,rgba(30,215,
 }
 
 /* Cross-device sync prompt */
-.sync-prompt{position:fixed;left:50%;bottom:104px;transform:translateX(-50%);z-index:90;width:min(600px,calc(100vw - 24px));display:flex;gap:12px;align-items:center;flex-wrap:wrap;border:1px solid rgba(30,215,96,.5);background:#0b1017;box-shadow:var(--shadow);padding:14px 16px}
+.sync-prompt{position:fixed;left:50%;bottom:104px;transform:translateX(-50%);z-index:9999;width:min(600px,calc(100vw - 24px));display:flex;gap:12px;align-items:center;flex-wrap:wrap;border:1px solid rgba(30,215,96,.5);background:#0b1017;box-shadow:0 22px 70px rgba(0,0,0,.6);padding:14px 16px}
 .sync-prompt p{margin:0;flex:1 1 260px;color:var(--text);font-size:.92rem;line-height:1.4}
 .sync-prompt .btn{padding:9px 13px}
-@media (max-width:520px){.sync-prompt{bottom:205px}.sync-prompt p{flex-basis:100%}.sync-prompt .btn{flex:1}}
+/* On phones show it at the top so the docked player cannot hide it. */
+@media (max-width:520px){
+  .sync-prompt{top:calc(env(safe-area-inset-top,0px) + 12px);bottom:auto;width:calc(100vw - 16px)}
+  .sync-prompt p{flex-basis:100%}
+  .sync-prompt .btn{flex:1}
+}
